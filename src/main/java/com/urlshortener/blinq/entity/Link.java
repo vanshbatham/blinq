@@ -27,9 +27,9 @@ public class Link extends BaseEntity {
 
     private String customAlias;
 
-    private LocalDateTime expiryDate;
+    private String title; // <-- ADD THIS LINE
 
-    private Long clickCount = 0L;
+    private LocalDateTime expiryDate;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

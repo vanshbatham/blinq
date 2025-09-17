@@ -8,4 +8,5 @@ import lombok.Setter;
 public class CreateLinkRequest {
     private String originalUrl;
     private String customAlias;
+    private String title;
 }

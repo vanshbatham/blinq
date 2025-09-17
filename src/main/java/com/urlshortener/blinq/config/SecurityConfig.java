@@ -32,8 +32,10 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
-                        .anyRequest().authenticated()
+                        // Rule 1: Secure all API endpoints under /api/v1/
+                        .requestMatchers("/api/v1/**").authenticated()
+                        // Rule 2: Allow all other requests (including /auth/** and our root redirect)
+                        .anyRequest().permitAll()
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -50,7 +52,7 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    
+
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(passwordEncoder());
