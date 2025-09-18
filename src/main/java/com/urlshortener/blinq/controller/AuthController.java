@@ -1,20 +1,18 @@
 package com.urlshortener.blinq.controller;
 
+import com.urlshortener.blinq.dto.AuthResponse;
 import com.urlshortener.blinq.entity.User;
 import com.urlshortener.blinq.repository.UserRepository;
 import com.urlshortener.blinq.security.JwtUtil;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -34,26 +32,39 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public String register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
-            return "Email already in use";
+            // Return a 409 Conflict status with a JSON error message
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Email already in use"));
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         user.setRoles(Set.of("USER"));
         userRepository.save(user);
-        return "User registered successfully";
+
+        // Return a 201 Created status with a JSON success message
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(Map.of("message", "User registered successfully"));
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody User user) {
+    public ResponseEntity<?> login(@RequestBody User user) {
         try {
             authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword())
             );
         } catch (AuthenticationException e) {
-            return "Invalid credentials";
+            // Return a 401 Unauthorized status for bad credentials
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid credentials"));
         }
-        return jwtUtil.generateToken(user.getEmail());
+        String token = jwtUtil.generateToken(user.getEmail());
+
+        // Return a 200 OK status with the token in a JSON object
+        return ResponseEntity.ok(new AuthResponse(token));
     }
 
     @GetMapping("/me")
