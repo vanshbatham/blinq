@@ -18,6 +18,8 @@ import java.util.Set;
 @Table(name = "users")
 public class User extends BaseEntity {
 
+    private String name;
+
     @Column(nullable = false, unique = true)
     private String email;
 
