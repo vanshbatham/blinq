@@ -5,6 +5,7 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.urlshortener.blinq.dto.CreateLinkRequest;
+import com.urlshortener.blinq.entity.Analytics;
 import com.urlshortener.blinq.entity.Link;
 import com.urlshortener.blinq.entity.User;
 import com.urlshortener.blinq.repository.LinkRepository;
@@ -86,5 +87,20 @@ public class LinkController {
                     }
                 })
                 .orElse(ResponseEntity.<byte[]>notFound().build());
+    }
+    
+    @GetMapping("/api/v1/links/{linkId}/analytics")
+    public ResponseEntity<List<Analytics>> getLinkAnalytics(@PathVariable Long linkId, Authentication authentication) {
+        String requesterEmail = authentication.getName();
+        try {
+            List<Analytics> analytics = linkService.getAnalytics(linkId, requesterEmail);
+            return ResponseEntity.ok(analytics);
+        } catch (SecurityException e) {
+            // Return a 403 Forbidden status if the user is not the owner
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (RuntimeException e) {
+            // Return a 404 Not Found status if the link doesn't exist
+            return ResponseEntity.notFound().build();
+        }
     }
 }

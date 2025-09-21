@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.List;
 
 @Service
 public class LinkService {
@@ -90,5 +91,19 @@ public class LinkService {
             code = sb.toString();
         } while (linkRepository.findByShortCode(code).isPresent()); // Loop until a unique code is found
         return code;
+    }
+
+    public List<Analytics> getAnalytics(Long linkId, String requesterEmail) {
+        // 1. Find the link by its ID
+        Link link = linkRepository.findById(linkId)
+                .orElseThrow(() -> new RuntimeException("Link not found"));
+
+        // 2. Security Check: Ensure the person asking for the data is the owner
+        if (!link.getOwner().getEmail().equals(requesterEmail)) {
+            throw new SecurityException("User is not authorized to view analytics for this link");
+        }
+
+        // 3. Return the analytics data
+        return analyticsRepository.findByLink(link);
     }
 }
