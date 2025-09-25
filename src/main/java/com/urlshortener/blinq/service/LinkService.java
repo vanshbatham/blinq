@@ -1,9 +1,7 @@
 package com.urlshortener.blinq.service;
 
-import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.exception.GeoIp2Exception;
-import com.maxmind.geoip2.model.CityResponse;
 import com.urlshortener.blinq.dto.CreateLinkRequest;
+import com.urlshortener.blinq.dto.GeoIpResponse;
 import com.urlshortener.blinq.entity.Analytics;
 import com.urlshortener.blinq.entity.Link;
 import com.urlshortener.blinq.entity.User;
@@ -13,14 +11,11 @@ import com.urlshortener.blinq.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import nl.basjes.parse.useragent.UserAgent;
 import nl.basjes.parse.useragent.UserAgentAnalyzer;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.ResourceLoader;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,21 +31,19 @@ public class LinkService {
     private static final int SHORT_CODE_LENGTH = 6;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    // --- NEW SERVICES for Advanced Analytics ---
-    private final DatabaseReader databaseReader;
+    // --- UPDATED SERVICES for Analytics ---
     private final UserAgentAnalyzer userAgentAnalyzer;
+    private final RestTemplate restTemplate;
 
-    public LinkService(LinkRepository linkRepository, UserRepository userRepository, AnalyticsRepository analyticsRepository, ResourceLoader resourceLoader) throws IOException {
+    public LinkService(LinkRepository linkRepository, UserRepository userRepository, AnalyticsRepository analyticsRepository, RestTemplateBuilder restTemplateBuilder) {
         this.linkRepository = linkRepository;
         this.userRepository = userRepository;
         this.analyticsRepository = analyticsRepository;
 
-        // Initialize GeoIP Database Reader from src/main/resources
-        Resource database = resourceLoader.getResource("classpath:GeoLite2-City.mmdb");
-        InputStream databaseInputStream = database.getInputStream();
-        this.databaseReader = new DatabaseReader.Builder(databaseInputStream).build();
+        // Initialize RestTemplate for making API calls to ip-api.com
+        this.restTemplate = restTemplateBuilder.build();
 
-        // Initialize User Agent Analyzer
+        // Initialize User Agent Analyzer (no change here)
         this.userAgentAnalyzer = UserAgentAnalyzer
                 .newBuilder()
                 .withField(UserAgent.DEVICE_CLASS)
@@ -98,27 +91,25 @@ public class LinkService {
         // Default values
         String city = "Unknown";
         String country = "Unknown";
-        String deviceType = "Unknown";
 
-        // GeoIP Lookup
+        // GeoIP API Call
         try {
             // Use a public IP for testing if you are running locally
             if (ipAddress.equals("127.0.0.1") || ipAddress.equals("0:0:0:0:0:0:0:1")) {
                 ipAddress = "8.8.8.8"; // Google's public DNS for testing
             }
-            InetAddress inetAddress = InetAddress.getByName(ipAddress);
-            CityResponse response = databaseReader.city(inetAddress);
-            if (response != null && response.getCity() != null) {
-                city = response.getCity().getName();
+            String apiUrl = "http://ip-api.com/json/" + ipAddress;
+            GeoIpResponse response = restTemplate.getForObject(apiUrl, GeoIpResponse.class);
+            if (response != null && "success".equals(response.status())) {
+                city = response.city();
+                country = response.country();
             }
-            if (response != null && response.getCountry() != null) {
-                country = response.getCountry().getName();
-            }
-        } catch (IOException | GeoIp2Exception e) {
-            // Silently fail if IP address is internal or not in the database
+        } catch (Exception e) {
+            // Silently fail if the API call fails or IP is unresolvable
         }
 
         // User Agent Parsing
+        String deviceType = "Unknown";
         if (userAgentString != null) {
             UserAgent agent = userAgentAnalyzer.parse(userAgentString);
             deviceType = agent.getValue(UserAgent.DEVICE_CLASS);
@@ -129,9 +120,9 @@ public class LinkService {
                 .ipAddress(ipAddress)
                 .userAgent(userAgentString)
                 .referrer(request.getHeader("Referer"))
-                .deviceType(deviceType) // set new field
-                .city(city)             // set new field
-                .country(country)       // set new field
+                .deviceType(deviceType)
+                .city(city)
+                .country(country)
                 .build();
         analyticsRepository.save(analytics);
     }
