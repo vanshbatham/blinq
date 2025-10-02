@@ -84,7 +84,7 @@ public class LinkService {
     }
 
     public void recordClick(Link link, HttpServletRequest request) {
-        //IP ADDRESS LOGIC ---
+        // --- IP ADDRESS LOGIC ---
         String ipAddress = request.getHeader("X-Forwarded-For");
         if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getRemoteAddr();
@@ -93,6 +93,7 @@ public class LinkService {
             // The first one is the original client IP.
             ipAddress = ipAddress.split(",")[0].trim();
         }
+        // --- END:IP ADDRESS LOGIC ---
 
         String userAgentString = request.getHeader("User-Agent");
 
