@@ -70,7 +70,7 @@ public class LinkController {
         List<Link> links = linkRepository.findByOwner(owner);
         return ResponseEntity.ok(links);
     }
-    
+
     @GetMapping(value = "/api/v1/links/{shortCode}/qr", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getQrCode(@PathVariable String shortCode) {
         return linkRepository.findByShortCode(shortCode)
@@ -107,7 +107,6 @@ public class LinkController {
         }
     }
 
-    // --- ADDED THIS MISSING ENDPOINT ---
     @GetMapping("/api/v1/links/{linkId}/analytics/summary")
     public ResponseEntity<?> getLinkAnalyticsSummary(@PathVariable Long linkId, Authentication authentication) {
         String requesterEmail = authentication.getName();
