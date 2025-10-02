@@ -84,25 +84,25 @@ public class LinkService {
     }
 
     public void recordClick(Link link, HttpServletRequest request) {
-        // --- IP ADDRESS LOGIC ---
         String ipAddress = request.getHeader("X-Forwarded-For");
         if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getRemoteAddr();
         } else {
-            // The X-Forwarded-For header can contain a comma-separated list of IPs.
-            // The first one is the original client IP.
             ipAddress = ipAddress.split(",")[0].trim();
         }
-        // --- END:IP ADDRESS LOGIC ---
 
         String userAgentString = request.getHeader("User-Agent");
 
         // Default values
         String city = "Unknown";
         String country = "Unknown";
+        String deviceType = "Unknown"; // Default value
 
-        // GeoIP API Call
+        // GeoIP API Call (remains the same)
         try {
+            if (ipAddress.equals("127.0.0.1") || ipAddress.equals("0:0:0:0:0:0:0:1")) {
+                ipAddress = "8.8.8.8";
+            }
             String apiUrl = "http://ip-api.com/json/" + ipAddress;
             GeoIpResponse response = restTemplate.getForObject(apiUrl, GeoIpResponse.class);
             if (response != null && "success".equals(response.status())) {
@@ -110,15 +110,33 @@ public class LinkService {
                 country = response.country();
             }
         } catch (Exception e) {
-            // Silently fail if the API call fails
+            // Silently fail
         }
 
-        // User Agent Parsing
-        String deviceType = "Unknown";
+        // --- START: DEVICE PARSING LOGIC ---
         if (userAgentString != null) {
             UserAgent agent = userAgentAnalyzer.parse(userAgentString);
-            deviceType = agent.getValue(UserAgent.DEVICE_CLASS);
+            String rawDeviceType = agent.getValue(UserAgent.DEVICE_CLASS);
+
+            // Normalize the results into the categories you want
+            switch (rawDeviceType) {
+                case "Desktop":
+                case "Anonymized": // Sometimes tablets are anonymized
+                    deviceType = "Desktop";
+                    break;
+                case "Tablet":
+                    deviceType = "Tablet";
+                    break;
+                case "Phone":
+                case "Mobile":
+                    deviceType = "Phone";
+                    break;
+                default:
+                    deviceType = "Other"; // Catch-all for bots, crawlers, etc.
+                    break;
+            }
         }
+        // --- END: DEVICE PARSING LOGIC ---
 
         Analytics analytics = Analytics.builder()
                 .link(link)
