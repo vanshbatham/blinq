@@ -55,6 +55,7 @@ public class LinkController {
     public ResponseEntity<?> redirect(@PathVariable String shortCode, HttpServletRequest request) {
         return linkService.getOriginalUrl(shortCode)
                 .map(link -> {
+                    // CORRECT: Click is recorded here when the link is used.
                     linkService.recordClick(link, request);
                     return ResponseEntity.status(HttpStatus.FOUND)
                             .location(URI.create(link.getOriginalUrl()))
@@ -68,6 +69,8 @@ public class LinkController {
         User owner = userRepository.findByEmail(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found during link fetch"));
         List<Link> links = linkRepository.findByOwner(owner);
+
+       
         return ResponseEntity.ok(links);
     }
 
